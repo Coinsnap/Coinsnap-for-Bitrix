@@ -1,7 +1,6 @@
 <?php
-if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true){
-    die();
-}
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true) 
+	die();
 
 use Bitrix\Main\Localization\Loc;
 
@@ -16,3 +15,5 @@ if (isset($payment) && $payment->isPaid()) {
 } else {
     echo '<script>window.location = '/'</script>';
 }
+
+?>
