@@ -18,6 +18,9 @@ Loc::loadMessages(__FILE__);
 if(!defined( 'COINSNAP_BITRIX_REFERRAL_CODE' )){
     define( 'COINSNAP_BITRIX_REFERRAL_CODE', 'D84007' );
 }
+if(!defined('COINSNAP_CURRENCIES')){
+    define( 'COINSNAP_CURRENCIES', array("EUR","USD","SATS","BTC","CAD","JPY","GBP","CHF","RUB") );
+}
 
 require_once(__DIR__  . '/library/loader.php');	
 class CoinsnapHandler extends PaySystem\ServiceHandler
@@ -31,6 +34,8 @@ class CoinsnapHandler extends PaySystem\ServiceHandler
         if ($payment->isPaid()) {
             return $this->showTemplate($payment, 'template');
         }
+        
+        $redirectAutomatically = ($this->getBusinessValue($payment, 'COINSNAP_AUTOREDIRECT') === 'N')? false : true;
 
         $paySystemId = $payment->getPaymentSystemId();        
         $url =  $this->getWebhookUrl();			
@@ -49,31 +54,31 @@ class CoinsnapHandler extends PaySystem\ServiceHandler
         $redirectUrl = $this->getReturnUrl($payment);
 		
         $propertyCollection = $order->getPropertyCollection();
-
-	$buyerName =  $propertyCollection->getPayerName()->getValue();
-	$buyerEmail = $propertyCollection->getUserEmail()->getValue();
+        
+        $buyerName =  is_null($propertyCollection->getPayerName()) ? '' : $propertyCollection->getPayerName()->getValue();
+	$buyerEmail = is_null($propertyCollection->getUserEmail()) ? '' : $propertyCollection->getUserEmail()->getValue();
                 
         $metadata = [];
 	$metadata['orderNumber'] = $order_id;
 	$metadata['customerName'] = $buyerName;
 		
-	$checkoutOptions = new \Coinsnap\Client\InvoiceCheckoutOptions();
-		
-	//$checkoutOptions->setRedirectURL( $redirectUrl );
-	$client = new \Coinsnap\Client\Invoice( $this->getApiUrl(), $this->getApiKey($payment) );			
+	$walletMessage = '';
+        
+        $client = new \Coinsnap\Client\Invoice( $this->getApiUrl(), $this->getApiKey($payment) );			
 	$camount = \Coinsnap\Util\PreciseNumber::parseFloat($amount,2);
 	$invoice = $client->createInvoice(
-			$this->getStoreId($payment),  
-			$currency_code,
-			$camount,
-			$order_id,
-			$buyerEmail,
-			$buyerName, 
-			$redirectUrl,
-			COINSNAP_BITRIX_REFERRAL_CODE,     
-			$metadata,
-			$checkoutOptions
-		);
+            $this->getStoreId($payment),  
+            $currency_code,
+            $camount,
+            $order_id,
+            $buyerEmail,
+            $buyerName, 
+            $redirectUrl,
+            COINSNAP_BITRIX_REFERRAL_CODE,
+            $metadata,
+            $redirectAutomatically,
+            $walletMessage
+	);
 		
 	$payurl = $invoice->getData()['checkoutLink'] ;
 				

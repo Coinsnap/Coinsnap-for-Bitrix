@@ -38,9 +38,27 @@ $data = [
             'GROUP' => Loc::getMessage('CONNECT_SETTINGS_COINSNAP')
             
         ],
+        
+        'COINSNAP_AUTOREDIRECT' => [
+            'NAME' => Loc::getMessage('SALE_COINSNAP_AUTOREDIRECT'),
+            'DESCRIPTION' => Loc::getMessage('SALE_COINSNAP_AUTOREDIRECT_DESCR'),
+            'INPUT' => array(
+                'TYPE' => 'Y/N',
+                'VALUES' => array('Y', 'N'),
+                'VALUE' => 'Y'
+            ),
+            'DEFAULT' => array(
+                'PROVIDER_VALUE' => 'Y',
+                'PROVIDER_KEY' => 'INPUT'
+            ),
+            'SORT' => 190,
+            'GROUP' => Loc::getMessage('COINSNAP_STATUS')
+            
+        ],
+        
         'COINSNAP_STATUS_NEW' => [
             'NAME' => Loc::getMessage('COINSNAP_STATUS_NEW'),
-            'DESCR' => Loc::getMessage('COINSNAP_STATUS_NEW_DESC'),
+            'DESCRIPTION' => Loc::getMessage('COINSNAP_STATUS_NEW_DESC'),
             'TYPE' => 'SELECT',
             'SORT' => 200,
             'GROUP' => Loc::getMessage('COINSNAP_STATUS'),
@@ -49,11 +67,11 @@ $data = [
                 'OPTIONS' => $orderStatuses,
                 'VALUE' => 'N',
             ],
-            ],
+        ],
 
             'COINSNAP_STATUS_EXP' => [
             'NAME' => Loc::getMessage('COINSNAP_STATUS_EXP'),
-            'DESCR' => Loc::getMessage('COINSNAP_STATUS_EXP_DESC'),
+            'DESCRIPTION' => Loc::getMessage('COINSNAP_STATUS_EXP_DESC'),
             'TYPE' => 'SELECT',
             'SORT' => 210,
             'GROUP' => Loc::getMessage('COINSNAP_STATUS'),
@@ -66,7 +84,7 @@ $data = [
 
         'COINSNAP_STATUS_SET' => [
             'NAME' => Loc::getMessage('COINSNAP_STATUS_SET'),
-            'DESCR' => Loc::getMessage('COINSNAP_STATUS_SET_DESC'),
+            'DESCRIPTION' => Loc::getMessage('COINSNAP_STATUS_SET_DESC'),
             'TYPE' => 'SELECT',
             'SORT' => 220,
             'GROUP' => Loc::getMessage('COINSNAP_STATUS'),
@@ -79,7 +97,7 @@ $data = [
 
         'COINSNAP_STATUS_PRO' => [
             'NAME' => Loc::getMessage('COINSNAP_STATUS_PRO'),
-            'DESCR' => Loc::getMessage('COINSNAP_STATUS_PRO_DESC'),
+            'DESCRIPTION' => Loc::getMessage('COINSNAP_STATUS_PRO_DESC'),
             'TYPE' => 'SELECT',
             'SORT' => 230,
             'GROUP' => Loc::getMessage('COINSNAP_STATUS'),

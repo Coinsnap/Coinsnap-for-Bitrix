@@ -5,7 +5,9 @@ $MESS["SALE_COINSNAP_SETTINGS"] = "Настройки Coinsnap";
 $MESS["SALE_COINSNAP_STORE_ID"] = "Coinsnap Store ID";
 $MESS["SALE_COINSNAP_STORE_ID_DESCR"] = "ID магазина в приложении Coinsnap";
 $MESS["SALE_COINSNAP_API_KEY"] = "Coinsnap API Key";
-$MESS["SALE_COINSNAP_API_KEY_DESCR"] = "API-ключ в прилоежнии Coinsnap";
+$MESS["SALE_COINSNAP_API_KEY_DESCR"] = "API-ключ в приложении Coinsnap";
+$MESS["SALE_COINSNAP_AUTOREDIRECT"] = "Автоматическое перенаправление";
+$MESS["SALE_COINSNAP_AUTOREDIRECT_DESCR"] = "Автоматически перенаправлять на сайт после оплаты";
 $MESS["CONNECT_SETTINGS_COINSNAP"] = "Параметры подключения к Coinsnaps";
 $MESS["COINSNAP_STATUS"] = "Статус оплаты";
 

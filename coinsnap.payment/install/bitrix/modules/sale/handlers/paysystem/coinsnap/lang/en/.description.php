@@ -6,6 +6,8 @@ $MESS["SALE_COINSNAP_STORE_ID"] = "Coinsnap Store ID";
 $MESS["SALE_COINSNAP_STORE_ID_DESCR"] = "Coinsnap Store ID";
 $MESS["SALE_COINSNAP_API_KEY"] = "Coinsnap API Key";
 $MESS["SALE_COINSNAP_API_KEY_DESCR"] = "Coinsnap API Key";
+$MESS["SALE_COINSNAP_AUTOREDIRECT"] = "Redirect after payment";
+$MESS["SALE_COINSNAP_AUTOREDIRECT_DESCR"] = "Redirect to Thank You page after payment automatically";
 $MESS["CONNECT_SETTINGS_COINSNAP"] = "Coinsnap Connection Parameters";
 $MESS["COINSNAP_STATUS"] = "Order status";
 
