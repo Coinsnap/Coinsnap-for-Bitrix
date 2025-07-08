@@ -8,3 +8,6 @@ $MESS["SALE_COINSNAP_WEBHOOK_ERROR"] = "Невозможно зарегистр�
 $MESS["SALE_COINSNAP_API_ERROR"] = "Ошибка API";
 $MESS["SALE_COINSNAP_INVOICE_DATA_ERROR"] = "Сумма заказа должна быть не менее";
 $MESS["SALE_COINSNAP_CURRENCY_ERROR"] = "Coinsnap не поддерживает эту валюту";
+$MESS["SALE_COINSNAP_WEBHOOKS_LIST_FETCHING_ERROR"] = "Ошибка получения списка вебхуков для store ID";
+$MESS["SALE_COINSNAP_WEBHOOK_CREATING_ERROR"] = "Ошибка создания вебхука в Coinsnap";
+$MESS["SALE_COINSNAP_WEBHOOK_FETCHING_ERROR"] = "Ошибка получения вебхука в Coinsnap";

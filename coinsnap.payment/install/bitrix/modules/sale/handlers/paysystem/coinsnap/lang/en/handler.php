@@ -8,3 +8,6 @@ $MESS["SALE_COINSNAP_WEBHOOK_ERROR"] = "Unable to Set Webhook, Check Store ID an
 $MESS["SALE_COINSNAP_API_ERROR"] = "API Error";
 $MESS["SALE_COINSNAP_INVOICE_DATA_ERROR"] = "Order amount shouldn`t be less than";
 $MESS["SALE_COINSNAP_CURRENCY_ERROR"] = "Currency is not supported by Coinsnap";
+$MESS["SALE_COINSNAP_WEBHOOKS_LIST_FETCHING_ERROR"] = "Error fetching webhooks for store ID";
+$MESS["SALE_COINSNAP_WEBHOOK_CREATING_ERROR"] = "Error creating a new webhook on Coinsnap"; 
+$MESS["SALE_COINSNAP_WEBHOOK_FETCHING_ERROR"] = "Error fetching existing Webhook";

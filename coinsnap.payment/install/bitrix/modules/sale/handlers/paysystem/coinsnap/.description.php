@@ -38,7 +38,13 @@ $data = [
             'GROUP' => Loc::getMessage('CONNECT_SETTINGS_COINSNAP')
             
         ],
-        
+        'COINSNAP_WEBHOOK_SECRET' => [
+            'NAME' => Loc::getMessage('SALE_COINSNAP_WEBHOOK_SECRET'),
+            'DESCRIPTION' => Loc::getMessage('SALE_COINSNAP_WEBHOOK_SECRET_DESCR'),
+            'SORT' => 120,
+            'GROUP' => Loc::getMessage('CONNECT_SETTINGS_COINSNAP')
+            
+        ],
         'COINSNAP_AUTOREDIRECT' => [
             'NAME' => Loc::getMessage('SALE_COINSNAP_AUTOREDIRECT'),
             'DESCRIPTION' => Loc::getMessage('SALE_COINSNAP_AUTOREDIRECT_DESCR'),

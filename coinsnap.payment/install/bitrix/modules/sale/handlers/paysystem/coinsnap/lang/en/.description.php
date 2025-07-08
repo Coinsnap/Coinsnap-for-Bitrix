@@ -3,11 +3,17 @@ global $MESS;
 $MESS["SALE_COINSNAP_SETTINGS"] = "Coinsnap Settings";
 
 $MESS["SALE_COINSNAP_STORE_ID"] = "Coinsnap Store ID";
-$MESS["SALE_COINSNAP_STORE_ID_DESCR"] = "Coinsnap Store ID";
+$MESS["SALE_COINSNAP_STORE_ID_DESCR"] = "Required field";
+
 $MESS["SALE_COINSNAP_API_KEY"] = "Coinsnap API Key";
-$MESS["SALE_COINSNAP_API_KEY_DESCR"] = "Coinsnap API Key";
+$MESS["SALE_COINSNAP_API_KEY_DESCR"] = "Required field";
+
+$MESS["SALE_COINSNAP_WEBHOOK_SECRET"] = "Coinsnap Webhook Secret";
+$MESS["SALE_COINSNAP_WEBHOOK_SECRET_DESCR"] = "Will be loaded from Coinsnap server";
+
 $MESS["SALE_COINSNAP_AUTOREDIRECT"] = "Redirect after payment";
 $MESS["SALE_COINSNAP_AUTOREDIRECT_DESCR"] = "Redirect to Thank You page after payment automatically";
+
 $MESS["CONNECT_SETTINGS_COINSNAP"] = "Coinsnap Connection Parameters";
 $MESS["COINSNAP_STATUS"] = "Order status";
 
