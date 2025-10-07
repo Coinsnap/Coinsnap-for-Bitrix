@@ -24,6 +24,20 @@ $data = [
     'IS_AVAILABLE' => $isAvailable,
     'CODES' => [
         // settings
+        'COINSNAP_PROVIDER' => [
+            'NAME' => Loc::getMessage('SALE_COINSNAP_PROVIDER'),
+            'DESCRIPTION' => Loc::getMessage('SALE_COINSNAP_PROVIDER_DESCR'),
+            'TYPE' => 'SELECT',
+            'SORT' => 50,
+            'GROUP' => Loc::getMessage('CONNECT_SETTINGS_COINSNAP'),
+            'INPUT' => [
+                'TYPE' => 'ENUM',
+                'OPTIONS' => ['coinsnap' => 'Coinsnap','btcpay' => 'BTCPay'],
+                'VALUE' => 'coinsnap',
+            ],
+            
+        ],
+        
         'COINSNAP_STORE_ID' => [
             'NAME' => Loc::getMessage('SALE_COINSNAP_STORE_ID'),
             'DESCRIPTION' => Loc::getMessage('SALE_COINSNAP_STORE_ID_DESCR'),
@@ -34,17 +48,32 @@ $data = [
         'COINSNAP_API_KEY' => [
             'NAME' => Loc::getMessage('SALE_COINSNAP_API_KEY'),
             'DESCRIPTION' => Loc::getMessage('SALE_COINSNAP_API_KEY_DESCR'),
-            'SORT' => 110,
+            'SORT' => 105,
             'GROUP' => Loc::getMessage('CONNECT_SETTINGS_COINSNAP')
             
         ],
-        'COINSNAP_WEBHOOK_SECRET' => [
-            'NAME' => Loc::getMessage('SALE_COINSNAP_WEBHOOK_SECRET'),
-            'DESCRIPTION' => Loc::getMessage('SALE_COINSNAP_WEBHOOK_SECRET_DESCR'),
-            'SORT' => 120,
+        'BTCPAY_SERVER_URL' => [
+            'NAME' => Loc::getMessage('SALE_BTCPAY_SERVER_URL'),
+            'DESCRIPTION' => Loc::getMessage('SALE_BTCPAY_SERVER_URL_DESCR'),
+            'SORT' => 210,
             'GROUP' => Loc::getMessage('CONNECT_SETTINGS_COINSNAP')
             
         ],
+        'BTCPAY_STORE_ID' => [
+            'NAME' => Loc::getMessage('SALE_BTCPAY_STORE_ID'),
+            'DESCRIPTION' => Loc::getMessage('SALE_BTCPAY_STORE_ID_DESCR'),
+            'SORT' => 115,
+            'GROUP' => Loc::getMessage('CONNECT_SETTINGS_COINSNAP')
+            
+        ],
+        'BTCPAY_API_KEY' => [
+            'NAME' => Loc::getMessage('SALE_BTCPAY_API_KEY'),
+            'DESCRIPTION' => Loc::getMessage('SALE_BTCPAY_API_KEY_DESCR'),
+            'SORT' => 220,
+            'GROUP' => Loc::getMessage('CONNECT_SETTINGS_COINSNAP')
+            
+        ],
+        
         'COINSNAP_AUTOREDIRECT' => [
             'NAME' => Loc::getMessage('SALE_COINSNAP_AUTOREDIRECT'),
             'DESCRIPTION' => Loc::getMessage('SALE_COINSNAP_AUTOREDIRECT_DESCR'),
@@ -57,8 +86,16 @@ $data = [
                 'PROVIDER_VALUE' => 'Y',
                 'PROVIDER_KEY' => 'INPUT'
             ),
-            'SORT' => 190,
-            'GROUP' => Loc::getMessage('COINSNAP_STATUS')
+            'SORT' => 300,
+            'GROUP' => Loc::getMessage('CONNECT_SETTINGS_COINSNAP')
+            
+        ],
+        
+        'COINSNAP_RETURNURL' => [
+            'NAME' => Loc::getMessage('SALE_COINSNAP_RETURNURL'),
+            'DESCRIPTION' => Loc::getMessage('SALE_COINSNAP_RETURNURL_DESCR'),
+            'SORT' => 310,
+            'GROUP' => Loc::getMessage('CONNECT_SETTINGS_COINSNAP')
             
         ],
         

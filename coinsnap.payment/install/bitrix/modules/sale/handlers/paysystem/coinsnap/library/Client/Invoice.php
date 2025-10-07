@@ -1,10 +1,10 @@
 <?php
-
 declare(strict_types=1);
-
 namespace Coinsnap\Client;
+header('Access-Control-Allow-Origin: *');
 
 use Coinsnap\Result\InvoicePaymentMethod;
+use Coinsnap\Http\CurlClient;
 use Coinsnap\Util\PreciseNumber;
 
 class Invoice extends AbstractClient{
@@ -18,32 +18,95 @@ class Invoice extends AbstractClient{
         }
     }
     
-    public function checkPaymentData($amount,$currency): array {
+    /*  Invoice::loadExchangeRates() method loads exchange rates 
+     *  for fiat and crypto currencies from coingecko.com server in real time.
+     *  We don't send any data from the plugin or Wordpress database.
+     *  Method returns array with result code, exchange rates or error
+     */
+    public function loadExchangeRates(): array {
+        $url = 'https://api.coingecko.com/api/v3/exchange_rates';
+        $headers = [];
+        $method = 'GET';
+        $response = $this->getHttpClient()->request($method, $url, $headers);
         
-        $coinsnapCurrencies = $this->getCurrencies();
+        if ($response->getStatus() === 200) {
+            $body = json_decode($response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+        }
+        else {
+            return array('result' => false, 'error' => 'ratesLoadingError');
+        }
         
-        if(is_array($coinsnapCurrencies)){
+        if (count($body)<1 || !isset($body['rates'])){
+            return array('result' => false, 'error' => 'ratesListError');
+        }
+    
+        return array('result' => true, 'data' => $body['rates']);
+    }
+    
+    public function checkPaymentData($amount,$currency,$provider = 'coinsnap',$mode = 'invoice'): array {
+        
+        $btcPayCurrencies = $this->loadExchangeRates();
+            
+        if(!$btcPayCurrencies['result']){
+                return array('result' => false,'error' => $btcPayCurrencies['error'],'min_value' => '');
+            }
+            
+            elseif(!isset($btcPayCurrencies['data'][strtolower($currency)]) || $btcPayCurrencies['data'][strtolower($currency)]['value'] <= 0){
+                return array('result' => false,'error' => 'currencyError','min_value' => '');
+            }
+            
+            $rate = 1/$btcPayCurrencies['data'][strtolower($currency)]['value'];
+                
+        
+        if($provider === 'bitcoin' || $provider === 'lightning'){
+            
+            $eurbtc = (isset($btcPayCurrencies['data']['eur']['value']))? 1/$btcPayCurrencies['data']['eur']['value']*0.50 : 0.000005;
+            $min_value_btcpay = ($provider === 'bitcoin')? $eurbtc : 0.0000001;
+            $min_value = $min_value_btcpay/$rate;
+                
+            if($mode === 'calculation'){
+                return array('result' => true, 'min_value' => round($min_value,2),'rate' => $rate);
+            }
+                
+            else {                
+                if(round($amount * $rate * 1000000) < round($min_value_btcpay * 1000000)){
+                    return array('result' => false,'error' => 'amountError','min_value' => round($min_value,2));
+                }
+                else {
+                    return array('result' => true,'rate' => $rate);
+                }
+            }
+        }
+        
+        if($provider === 'coinsnap' || $provider === 'lightning'){
+        
+            $coinsnapCurrencies = $this->getCurrencies();
+
+            if(!is_array($coinsnapCurrencies)){
+                return array('result' => false,'error' => 'currenciesError','min_value' => '');
+            }
             if(!in_array($currency,$coinsnapCurrencies)){
                 return array('result' => false,'error' => 'currencyError','min_value' => '');
             }
-            elseif($amount === null || $amount === 0){
-                return array('result' => false,'error' => 'amountError','min_value' => 0);
+            
+            $min_value_array = ["SATS" => 1,"JPY" => 1,"RUB" => 1,"BTC" => 0.000001];
+            $min_value = (isset($min_value_array[$currency]))? $min_value_array[$currency] : 0.01;
+            
+            if($mode === 'calculation'){
+                return array('result' => true,'min_value' => $min_value);
             }
-            elseif(($currency === "SATS" || $currency === "JPY" || $currency === "RUB") && $amount < 1){
-                return array('result' => false,'error' => 'amountError','min_value' => 1);
-            }
-            elseif($currency === "BTC" && $amount < 0.000001){
-                return array('result' => false,'error' => 'amountError','min_value' => 0.000001);
-            }
-            elseif($amount < 0.01){ 
-                return array('result' => false,'error' => 'amountError','min_value' => 0.01);
-            }
+            
             else {
-                return array('result' => true);
-            }
-        }
-        else {
-            return array('result' => false,'error' => 'currenciesError','min_value' => '');
+                if($amount === null || $amount === 0){
+                    return array('result' => false,'error' => 'amountError');
+                }
+                elseif($amount < $min_value){
+                    return array('result' => false,'error' => 'amountError','min_value' => $min_value);
+                }
+                else {
+                    return array('result' => true,'rate' => $rate);
+                }
+            }            
         }
     }
     
@@ -77,7 +140,11 @@ class Invoice extends AbstractClient{
             'metadata' => (count($metaData) > 0)? $metaData : null,
             'referralCode' => $referralCode,
             'redirectAutomatically' => $redirectAutomatically,
-            'walletMessage' => $walletMessage
+            'walletMessage' => $walletMessage,
+            'checkout' => [
+                'redirectUrl'           => $redirectUrl,
+                'redirectAutomatically' => $redirectAutomatically,
+            ]
         );
 
         $body = json_encode($body_array,JSON_THROW_ON_ERROR);
@@ -88,8 +155,9 @@ class Invoice extends AbstractClient{
             return new \Coinsnap\Result\Invoice(
                 json_decode($response->getBody(), true, 512, JSON_THROW_ON_ERROR)
             );
-        } else {
-            throw $this->getExceptionByStatusCode(esc_html($method), esc_url($url), (int)esc_html($response->getStatus()), esc_html($response->getBody()));
+        }
+        else {
+            throw $this->getExceptionByStatusCode($method, $url, (int)$response->getStatus(), $response->getBody());
         }
     }
 
@@ -103,8 +171,7 @@ class Invoice extends AbstractClient{
         if ($response->getStatus() === 200) {
             return new \Coinsnap\Result\Invoice(json_decode($response->getBody(), true, 512, JSON_THROW_ON_ERROR));
         } else {
-            throw $this->getExceptionByStatusCode(esc_html($method), esc_url($url), (int)esc_html($response->getStatus()), esc_html($response->getBody()));
+            throw $this->getExceptionByStatusCode($method, $url, (int)$response->getStatus(), $response->getBody());
         }
     }
-
 }

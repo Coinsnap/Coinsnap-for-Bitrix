@@ -2,17 +2,34 @@
 global $MESS;
 $MESS["SALE_COINSNAP_SETTINGS"] = "Coinsnap Settings";
 
+$MESS["SALE_COINSNAP_PROVIDER"] = "Provider";
+$MESS["SALE_COINSNAP_PROVIDER_DESCR"] = "Choose provider: Coinsnap or BTCPay Server";
+
 $MESS["SALE_COINSNAP_STORE_ID"] = "Coinsnap Store ID";
 $MESS["SALE_COINSNAP_STORE_ID_DESCR"] = "Required field";
 
 $MESS["SALE_COINSNAP_API_KEY"] = "Coinsnap API Key";
 $MESS["SALE_COINSNAP_API_KEY_DESCR"] = "Required field";
 
+$MESS["SALE_BTCPAY_SETTINGS"] = "BTCPay server Settings";
+
+$MESS["SALE_BTCPAY_SERVER_URL"] = "BTCPay server URL";
+$MESS["SALE_BTCPAY_SERVER_URL_DESCR"] = "Required field";
+
+$MESS["SALE_BTCPAY_STORE_ID"] = "BTCPay Store ID";
+$MESS["SALE_BTCPAY_STORE_ID_DESCR"] = "Required field";
+
+$MESS["SALE_BTCPAY_API_KEY"] = "BTCPay API Key";
+$MESS["SALE_BTCPAY_API_KEY_DESCR"] = "Required field";
+
 $MESS["SALE_COINSNAP_WEBHOOK_SECRET"] = "Coinsnap Webhook Secret";
 $MESS["SALE_COINSNAP_WEBHOOK_SECRET_DESCR"] = "Will be loaded from Coinsnap server";
 
 $MESS["SALE_COINSNAP_AUTOREDIRECT"] = "Redirect after payment";
 $MESS["SALE_COINSNAP_AUTOREDIRECT_DESCR"] = "Redirect to Thank You page after payment automatically";
+
+$MESS["SALE_COINSNAP_RETURNURL"] = "Return URL after payment";
+$MESS["SALE_COINSNAP_RETURNURL_DESCR"] = "Custom return URL after successful payment (default URL if blank)";
 
 $MESS["CONNECT_SETTINGS_COINSNAP"] = "Coinsnap Connection Parameters";
 $MESS["COINSNAP_STATUS"] = "Order status";

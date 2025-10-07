@@ -2,17 +2,34 @@
 global $MESS;
 $MESS["SALE_COINSNAP_SETTINGS"] = "Настройки Coinsnap";
 
+$MESS["SALE_COINSNAP_PROVIDER"] = "Провайдер";
+$MESS["SALE_COINSNAP_PROVIDER_DESCR"] = "Выберите провайдера: Coinsnap или BTCPay Server";
+
 $MESS["SALE_COINSNAP_STORE_ID"] = "Coinsnap Store ID";
 $MESS["SALE_COINSNAP_STORE_ID_DESCR"] = "Обязательное поле";
 
 $MESS["SALE_COINSNAP_API_KEY"] = "Coinsnap API Key";
 $MESS["SALE_COINSNAP_API_KEY_DESCR"] = "Обязательное поле";
 
+$MESS["SALE_BTCPAY_SETTINGS"] = "Настройки BTCPay сервера";
+
+$MESS["SALE_BTCPAY_SERVER_URL"] = "Адрес BTCPay сервера";
+$MESS["SALE_BTCPAY_SERVER_URL_DESCR"] = "Обязательное поле";
+
+$MESS["SALE_BTCPAY_STORE_ID"] = "BTCPay Store ID";
+$MESS["SALE_BTCPAY_STORE_ID_DESCR"] = "Обязательное поле";
+
+$MESS["SALE_BTCPAY_API_KEY"] = "BTCPay API Key";
+$MESS["SALE_BTCPAY_API_KEY_DESCR"] = "Обязательное поле";
+
 $MESS["SALE_COINSNAP_WEBHOOK_SECRET"] = "Секретная строка вебхука";
-$MESS["SALE_COINSNAP_WEBHOOK_SECRET_DESCR"] = "Будет загружена с сервера Coinsnap";
+$MESS["SALE_COINSNAP_WEBHOOK_SECRET_DESCR"] = "Будет загружена с сервера (Coinsnap или BTCPay)";
 
 $MESS["SALE_COINSNAP_AUTOREDIRECT"] = "Автоматическое перенаправление";
 $MESS["SALE_COINSNAP_AUTOREDIRECT_DESCR"] = "Автоматически перенаправлять на сайт после оплаты";
+
+$MESS["SALE_COINSNAP_RETURNURL"] = "URL страницы после оплаты";
+$MESS["SALE_COINSNAP_RETURNURL_DESCR"] = "Пользовательский URL страницы после успешной оплаты (URL по умолчанию, если пусто)";
 
 $MESS["CONNECT_SETTINGS_COINSNAP"] = "Параметры подключения к Coinsnaps";
 $MESS["COINSNAP_STATUS"] = "Статус оплаты";
