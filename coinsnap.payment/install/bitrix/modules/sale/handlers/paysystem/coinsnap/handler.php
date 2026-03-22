@@ -1,13 +1,19 @@
 <?php
 namespace Sale\Handlers\PaySystem;
 
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true) {
+	die();
+}
+
 use Bitrix\Main;
+use Bitrix\Main\Error;
 use Bitrix\Main\Request;
 use Bitrix\Main\Type\DateTime;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Web\HttpClient;
 use Bitrix\Sale\PaySystem;
 use Bitrix\Sale\Payment;
+use Bitrix\Main\Loader;
 use Bitrix\Main\Application;
 use Bitrix\Sale\PriceMaths;
 use Bitrix\Sale\Order as SaleOrder;
@@ -16,10 +22,10 @@ use Bitrix\Sale\PaySystem\Logger;
 use Coinsnap\Client\Webhook;
 Loc::loadMessages(__FILE__);
 
-if(!defined('COINSNAP_BITRIX_VERSION')){ define( 'COINSNAP_BITRIX_VERSION', '1.0.0' ); }
+if(!defined('COINSNAP_BITRIX_VERSION')){ define( 'COINSNAP_BITRIX_VERSION', '1.1.0' ); }
 if(!defined('COINSNAP_BITRIX_REFERRAL_CODE')){ define( 'COINSNAP_BITRIX_REFERRAL_CODE', 'D84007' ); }
 if(!defined('COINSNAP_CURRENCIES')){ define( 'COINSNAP_CURRENCIES', array("EUR","USD","SATS","BTC","CAD","JPY","GBP","CHF","RUB") ); }
-if(!defined('COINSNAP_SERVER_URL')){ define( 'COINSNAP_GIVEWP_SERVER_URL', 'https://app.coinsnap.io' );}
+if(!defined('COINSNAP_SERVER_URL')){ define( 'COINSNAP_SERVER_URL', 'https://app.coinsnap.io' );}
 if(!defined('COINSNAP_API_PATH')){define( 'COINSNAP_API_PATH', '/api/v1/');}
 if(!defined('COINSNAP_SERVER_PATH')){define( 'COINSNAP_SERVER_PATH', 'stores' );}
 
@@ -33,6 +39,7 @@ class CoinsnapHandler extends PaySystem\ServiceHandler {
         $order = $payment->getOrder();
         $order_id = $order->getId();
         $currency_code = $order->getCurrency();
+        
         
         $paymentCollection = $order->getPaymentCollection();
         $propertyCollection = $order->getPropertyCollection();
@@ -53,18 +60,21 @@ class CoinsnapHandler extends PaySystem\ServiceHandler {
             }
 	}
         
+        
 
         $amount = number_format($payment->getSum(),2);
         
         $client = new \Coinsnap\Client\Invoice( $this->getApiUrl($payment), $this->getApiKey($payment) );
         $checkInvoice = $client->checkPaymentData((float)$amount,strtoupper($currency_code));
         
+        
+        
         if($checkInvoice['result'] === true){
             
             $buyerName =  is_null($propertyCollection->getPayerName()) ? '' : $propertyCollection->getPayerName()->getValue();
             $buyerEmail = is_null($propertyCollection->getUserEmail()) ? '' : $propertyCollection->getUserEmail()->getValue();
 
-            $redirectUrl = $this->getReturnUrl($payment);
+            $redirectUrl = (!empty($this->getBusinessValue($payment, 'COINSNAP_RETURNURL')))? $this->getBusinessValue($payment, 'COINSNAP_RETURNURL') : $this->getReturnUrl($payment);
 		
             $metadata = [];
             $metadata['orderNumber'] = $order_id;
@@ -102,20 +112,23 @@ class CoinsnapHandler extends PaySystem\ServiceHandler {
 
             $invoiceURL = $invoice->getData()['checkoutLink'];
             $invoiceId = $invoice->getData()['id'];
+            
+            
+        
 
             if (!empty($invoiceURL)){
                 
                 if(!$propertyCollection->getItemByOrderPropertyCode('INVOICE_URL')){
                 
-                $invoice_url = $propertyCollection->createItem(
-                    [
-                        'NAME' => 'INVOICE URL',
-                        'CODE' => 'INVOICE_URL',
-                        'TYPE' => 'STRING',
-                    ]
-                );
-                
-                $invoice_url->setField('VALUE', $invoiceURL);
+                    $invoice_url = $propertyCollection->createItem(
+                        [
+                            'NAME' => Loc::getMessage( 'SALE_COINSNAP_INVOICE_URL' ),
+                            'CODE' => 'INVOICE_URL',
+                            'TYPE' => 'STRING',
+                        ]
+                    );
+
+                    $invoice_url->setField('VALUE', $invoiceURL);
                 
                 }
                 
@@ -125,6 +138,7 @@ class CoinsnapHandler extends PaySystem\ServiceHandler {
                     [
                         'PS_STATUS_CODE' => $status_id,
                         'PS_INVOICE_ID' => $invoiceId,
+                        'PS_STATUS_DESCRIPTION' => Loc::getMessage("SALE_COINSNAP_STATUS_WAITING")
                     ]
                 );
                 
@@ -256,24 +270,26 @@ class CoinsnapHandler extends PaySystem\ServiceHandler {
                 switch($status){
                     case 'New':
                         $status_id = $this->getBusinessValue($payment, 'COINSNAP_STATUS_NEW');
+                        $description = Loc::getMessage("SALE_COINSNAP_STATUS_NEW");
                         break;
                     case 'InvoiceExpired':
                     case 'Expired':
                         $status_id = $this->getBusinessValue($payment, 'COINSNAP_STATUS_EXP');
+                        $description = Loc::getMessage("SALE_COINSNAP_STATUS_EXP");
                         break;
                     case 'InvoiceProcessing':
                     case 'Processing': 
                         $status_id = $this->getBusinessValue($payment, 'COINSNAP_STATUS_PRO');
+                        $description = Loc::getMessage("SALE_COINSNAP_STATUS_PRO");
                         break;
                     case 'InvoiceSettled':
                     case 'Settled':
                         $status_id = $this->getBusinessValue($payment, 'COINSNAP_STATUS_SET');
+                        $description = Loc::getMessage("SALE_COINSNAP_STATUS_SET");
                         break;
                     default: break;
                 }
                 
-                $description = Loc::getMessage("SALE_COINSNAP_TRANSACTION").$invoice_id;        
-
                 $arFields = array(
                     'STATUS_ID' =>$status_id,
                     'PS_STATUS_DESCRIPTION' => $description,

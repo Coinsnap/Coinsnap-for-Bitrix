@@ -31,8 +31,22 @@ $MESS["SALE_COINSNAP_AUTOREDIRECT_DESCR"] = "Redirect to Thank You page after pa
 $MESS["SALE_COINSNAP_RETURNURL"] = "Return URL after payment";
 $MESS["SALE_COINSNAP_RETURNURL_DESCR"] = "Custom return URL after successful payment (default URL if blank)";
 
-$MESS["CONNECT_SETTINGS_COINSNAP"] = "Coinsnap Connection Parameters";
+$MESS["CONNECT_SETTINGS_COINSNAP"] = "Coinsnap and BTCPay server connection parameters";
+$MESS["COINSNAP_DISCOUNT"] = "Discount settings";
 $MESS["COINSNAP_STATUS"] = "Order status";
+
+$MESS['DISCOUNT_ENABLED']       = 'Discount enabled';
+$MESS['DISCOUNT_TYPE']       = 'Discount type';
+$MESS['DISCOUNT_TYPE_FIXED']       = 'Fixed';
+$MESS['DISCOUNT_TYPE_PERCENTAGE'] = 'Percentage';
+
+$MESS['DISCOUNT_AMOUNT']       = 'Discount amount';
+$MESS['DISCOUNT_AMOUNT_LIMIT']       = 'Max discount amount, %';
+$MESS['DISCOUNT_PERCENTAGE']       = 'Discount amount, %';
+
+$MESS['DISCOUNT_AMOUNT_DESC']       = 'Discount amount';
+$MESS['DISCOUNT_AMOUNT_LIMIT_DESC']       = 'Max discount amount for fixed discount, %';
+$MESS['DISCOUNT_PERCENTAGE_DESC']       = 'Discount amount in percents (%)';
 
 
 $MESS["COINSNAP_STATUS_NEW"] = "New";

@@ -62,7 +62,7 @@ $data = [
         'BTCPAY_STORE_ID' => [
             'NAME' => Loc::getMessage('SALE_BTCPAY_STORE_ID'),
             'DESCRIPTION' => Loc::getMessage('SALE_BTCPAY_STORE_ID_DESCR'),
-            'SORT' => 115,
+            'SORT' => 215,
             'GROUP' => Loc::getMessage('CONNECT_SETTINGS_COINSNAP')
             
         ],
@@ -86,7 +86,7 @@ $data = [
                 'PROVIDER_VALUE' => 'Y',
                 'PROVIDER_KEY' => 'INPUT'
             ),
-            'SORT' => 300,
+            'SORT' => 230,
             'GROUP' => Loc::getMessage('CONNECT_SETTINGS_COINSNAP')
             
         ],
@@ -94,16 +94,76 @@ $data = [
         'COINSNAP_RETURNURL' => [
             'NAME' => Loc::getMessage('SALE_COINSNAP_RETURNURL'),
             'DESCRIPTION' => Loc::getMessage('SALE_COINSNAP_RETURNURL_DESCR'),
-            'SORT' => 310,
+            'SORT' => 240,
             'GROUP' => Loc::getMessage('CONNECT_SETTINGS_COINSNAP')
             
         ],
+        
+        //  DISCOUNT
+        
+        'COINSNAP_DISCOUNT_ENABLED' => [
+            'NAME' => Loc::getMessage('DISCOUNT_ENABLED'),
+            'DESCRIPTION' => Loc::getMessage('DISCOUNT_ENABLED_DESCR'),
+            'INPUT' => array(
+                'TYPE' => 'Y/N',
+                'VALUES' => array('Y', 'N'),
+                'VALUE' => 'Y'
+            ),
+            'DEFAULT' => array(
+                'PROVIDER_VALUE' => 'N',
+                'PROVIDER_KEY' => 'INPUT'
+            ),
+            'SORT' => 300,
+            'GROUP' => Loc::getMessage('COINSNAP_DISCOUNT')
+            
+        ],
+        
+        'COINSNAP_DISCOUNT_TYPE' => [
+            'NAME' => Loc::getMessage('DISCOUNT_TYPE'),
+            'DESCRIPTION' => Loc::getMessage('DISCOUNT_TYPE_DESCR'),
+            'TYPE' => 'SELECT',
+            'SORT' => 310,
+            'GROUP' => Loc::getMessage('COINSNAP_DISCOUNT'),
+            'INPUT' => [
+                'TYPE' => 'ENUM',
+                'OPTIONS' => ['fixed' => Loc::getMessage('DISCOUNT_TYPE_FIXED'),'percentage' => Loc::getMessage('DISCOUNT_TYPE_PERCENTAGE')],
+                'VALUE' => 'fixed',
+            ],
+            
+        ],
+        
+        'COINSNAP_DISCOUNT_AMOUNT' => [
+            'NAME' => Loc::getMessage('DISCOUNT_AMOUNT'),
+            'DESCRIPTION' => Loc::getMessage('DISCOUNT_AMOUNT_DESCR'),
+            'SORT' => 320,
+            'TYPE' => 'number',
+            'GROUP' => Loc::getMessage('COINSNAP_DISCOUNT')
+        ],
+        
+        'COINSNAP_DISCOUNT_AMOUNT_LIMIT' => [
+            'NAME' => Loc::getMessage('DISCOUNT_AMOUNT_LIMIT'),
+            'DESCRIPTION' => Loc::getMessage('DISCOUNT_AMOUNT_LIMIT_DESCR'),
+            'SORT' => 330,
+            'TYPE' => 'number',
+            'GROUP' => Loc::getMessage('COINSNAP_DISCOUNT')
+        ],
+        
+        'COINSNAP_DISCOUNT_PERCENTAGE' => [
+            'NAME' => Loc::getMessage('DISCOUNT_PERCENTAGE'),
+            'DESCRIPTION' => Loc::getMessage('DISCOUNT_PERCENTAGE_DESCR'),
+            'SORT' => 340,
+            'TYPE' => 'number',
+            'GROUP' => Loc::getMessage('COINSNAP_DISCOUNT')
+        ],
+        
+        
+        //  STATUSES
         
         'COINSNAP_STATUS_NEW' => [
             'NAME' => Loc::getMessage('COINSNAP_STATUS_NEW'),
             'DESCRIPTION' => Loc::getMessage('COINSNAP_STATUS_NEW_DESC'),
             'TYPE' => 'SELECT',
-            'SORT' => 200,
+            'SORT' => 400,
             'GROUP' => Loc::getMessage('COINSNAP_STATUS'),
             'INPUT' => [
                 'TYPE' => 'ENUM',
@@ -116,7 +176,7 @@ $data = [
             'NAME' => Loc::getMessage('COINSNAP_STATUS_EXP'),
             'DESCRIPTION' => Loc::getMessage('COINSNAP_STATUS_EXP_DESC'),
             'TYPE' => 'SELECT',
-            'SORT' => 210,
+            'SORT' => 410,
             'GROUP' => Loc::getMessage('COINSNAP_STATUS'),
             'INPUT' => [
                 'TYPE' => 'ENUM',
@@ -129,7 +189,7 @@ $data = [
             'NAME' => Loc::getMessage('COINSNAP_STATUS_SET'),
             'DESCRIPTION' => Loc::getMessage('COINSNAP_STATUS_SET_DESC'),
             'TYPE' => 'SELECT',
-            'SORT' => 220,
+            'SORT' => 420,
             'GROUP' => Loc::getMessage('COINSNAP_STATUS'),
             'INPUT' => [
                 'TYPE' => 'ENUM',
@@ -142,7 +202,7 @@ $data = [
             'NAME' => Loc::getMessage('COINSNAP_STATUS_PRO'),
             'DESCRIPTION' => Loc::getMessage('COINSNAP_STATUS_PRO_DESC'),
             'TYPE' => 'SELECT',
-            'SORT' => 230,
+            'SORT' => 430,
             'GROUP' => Loc::getMessage('COINSNAP_STATUS'),
             'INPUT' => [
                 'TYPE' => 'ENUM',

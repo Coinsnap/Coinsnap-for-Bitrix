@@ -8,7 +8,7 @@
 * Requires PHP: 8.1
 * Requires Bitrix: 14.0+
 * Compatible Bitrix versions: Small business, Business, Enterprise
-* Stable tag: 1.0.0
+* Stable tag: 1.1.0
 * License: GNU General Public License v3.0
 * License URI: https://github.com/Coinsnap/Coinsnap-for-Bitrix/blob/main/LICENSE
 
@@ -121,5 +121,12 @@ Read more about the integration configuration on [our Wiki](https://github.com/C
 
 # Changelog
 
-= 1.0.0 :: 2025-02-20 =
+### 1.0.0 :: 2025-02-20
 * Initial release.
+
+### 1.1.0 :: 2026-03-22
+* Updated Coinsnap PHP library.
+* Update: added payment descriptions.
+* Update: added BTCPay server gateway.
+* Update: added automatic redirect setting.
+* Update: added redirect to custom URL after payment.

@@ -31,8 +31,22 @@ $MESS["SALE_COINSNAP_AUTOREDIRECT_DESCR"] = "Автоматически пере
 $MESS["SALE_COINSNAP_RETURNURL"] = "URL страницы после оплаты";
 $MESS["SALE_COINSNAP_RETURNURL_DESCR"] = "Пользовательский URL страницы после успешной оплаты (URL по умолчанию, если пусто)";
 
-$MESS["CONNECT_SETTINGS_COINSNAP"] = "Параметры подключения к Coinsnaps";
+$MESS["CONNECT_SETTINGS_COINSNAP"] = "Параметры подключения к Coinsnap и серверу BTCPay";
+$MESS["COINSNAP_DISCOUNT"] = "Настройки скидки";
 $MESS["COINSNAP_STATUS"] = "Статус оплаты";
+
+$MESS['DISCOUNT_ENABLED']       = 'Скидка разрешена';
+$MESS['DISCOUNT_TYPE']       = 'Тип скидки';
+$MESS['DISCOUNT_TYPE_FIXED']       = 'Фиксированная';
+$MESS['DISCOUNT_TYPE_PERCENTAGE'] = 'Процент от суммы заказа';
+
+$MESS['DISCOUNT_AMOUNT']       = 'Размер скидки';
+$MESS['DISCOUNT_AMOUNT_LIMIT']       = 'Максимальный размер скидки, %';
+$MESS['DISCOUNT_PERCENTAGE']       = 'Размер скидки в %';
+
+$MESS['DISCOUNT_AMOUNT_DESC']       = 'Размер скидки';
+$MESS['DISCOUNT_AMOUNT_LIMIT_DESC']       = 'Максимальный размер скидки для фиксированной суммы, %';
+$MESS['DISCOUNT_PERCENTAGE_DESC']       = 'Величина скидки в процентах (%)';
 
 
 $MESS["COINSNAP_STATUS_NEW"] = "Новый";

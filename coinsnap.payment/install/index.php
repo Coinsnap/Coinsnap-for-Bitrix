@@ -7,6 +7,12 @@ Loc::loadMessages(__FILE__);
 Class coinsnap_payment extends CModule
 {
     var $MODULE_ID = "coinsnap.payment";
+    public $MODULE_VERSION;
+    public $MODULE_VERSION_DATE;
+    public $MODULE_NAME;
+    public $MODULE_DESCRIPTION;
+    public $PARTNER_NAME;
+    public $PARTNER_URI;
 
     function __construct()
     {
