@@ -220,6 +220,25 @@ class CoinsnapHandler extends PaySystem\ServiceHandler {
      * @return PaySystem\ServiceResult
      */
     public function processRequest(Payment $payment, Request $request){
+        // One webhook at a time per payment, so two deliveries can't both mark it paid.
+        $db = Application::getConnection();
+        $lock = $db->getSqlHelper()->forSql('coinsnap_payment_' . (int) $payment->getId());
+        $locked = $db->query("SELECT GET_LOCK('" . $lock . "', 10) AS L")->fetch();
+        if ((int) ($locked['L'] ?? 0) !== 1) {
+            http_response_code(503);
+            echo 'Retry';
+            exit;
+        }
+        try {
+            $order = SaleOrder::load($payment->getOrderId());
+            $fresh = $order ? $order->getPaymentCollection()->getItemById($payment->getId()) : null;
+            $this->handleWebhook($fresh ?: $payment);
+        } finally {
+            $db->query("SELECT RELEASE_LOCK('" . $lock . "')");
+        }
+    }
+
+    private function handleWebhook(Payment $payment): void {
         $provider = $this->getPaymentProvider($payment);
         $stored = json_decode($this->getWebhookSecret($payment), true);
         $secret = is_array($stored) ? (string) ($stored['secret'] ?? '') : '';
@@ -325,15 +344,31 @@ class CoinsnapHandler extends PaySystem\ServiceHandler {
         return ($this->getBusinessValue($payment, 'COINSNAP_PROVIDER') === 'btcpay')? $this->getBusinessValue($payment, 'BTCPAY_API_KEY') : $this->getBusinessValue($payment, 'COINSNAP_API_KEY');
     }	
 
+    // Kept per provider and store, so two Coinsnap payment systems never overwrite each other's secret.
     public function getWebhookSecret($payment){
-        return ($this->getBusinessValue($payment, 'COINSNAP_WEBHOOK_SECRET') !== null && !empty($this->getBusinessValue($payment, 'COINSNAP_WEBHOOK_SECRET')))? 
-                $this->getBusinessValue($payment, 'COINSNAP_WEBHOOK_SECRET') : '';
-    }	
+        $stored = Main\Config\Option::get('coinsnap.payment', self::webhookOptionName((string) $this->getPaymentProvider($payment), (string) $this->getStoreId($payment)), '');
+        if ($stored !== '') {
+            return $stored;
+        }
+        // Versions before 1.2.0 kept one secret for all payment systems.
+        $legacy = $this->getBusinessValue($payment, 'COINSNAP_WEBHOOK_SECRET');
+        return ($legacy !== null && !empty($legacy)) ? $legacy : '';
+    }
 
-    private function getWebhookUrl(){        
-        $server = \Bitrix\Main\Application::getInstance()->getContext()->getServer();
-        $server_uri = $server->getRequestScheme().'://'.$server->getServerName();
-        return $server_uri.'/bitrix/tools/sale_ps_result.php';
+    private static function webhookOptionName(string $provider, string $storeId): string {
+        return 'webhook_' . md5($provider . '|' . $storeId);
+    }
+
+    // From the configured server name, never the request's Host header.
+    private function getWebhookUrl(){
+        $serverName = trim((string) Main\Config\Option::get('main', 'server_name', ''));
+        if ($serverName === '' && defined('SITE_SERVER_NAME')) {
+            $serverName = trim((string) SITE_SERVER_NAME);
+        }
+        if ($serverName === '') {
+            throw new \RuntimeException('Coinsnap: set the server URL in the main module settings');
+        }
+        return 'https://' . preg_replace('#^https?://#i', '', rtrim($serverName, '/')) . '/bitrix/tools/sale_ps_result.php';
     }
 
     private function getReturnUrl(Payment $payment){
@@ -385,18 +420,7 @@ class CoinsnapHandler extends PaySystem\ServiceHandler {
         }
 
         $value = json_encode(['id' => $webhook['id'], 'secret' => $webhook['secret'], 'url' => $webhook['url'] ?? $this->getWebhookUrl()]);
-        $db = \Bitrix\Main\Application::getConnection();
-        $helper = $db->getSqlHelper();
-        $exists = $db->query("SELECT `CODE_KEY` FROM b_sale_bizval WHERE CODE_KEY = 'COINSNAP_WEBHOOK_SECRET'")->fetch();
-        if ($exists) {
-            $db->queryExecute("UPDATE b_sale_bizval SET PROVIDER_VALUE = '" . $helper->forSql($value) . "' WHERE CODE_KEY = 'COINSNAP_WEBHOOK_SECRET'");
-        }
-        else {
-            $db->add('b_sale_bizval', [
-                'PROVIDER_VALUE' => $value,
-                'CODE_KEY' => 'COINSNAP_WEBHOOK_SECRET'
-            ]);
-        }
+        Main\Config\Option::set('coinsnap.payment', self::webhookOptionName((string) $provider, (string) $storeId), $value);
         return true;
     }
 }
