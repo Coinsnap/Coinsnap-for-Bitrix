@@ -35,7 +35,7 @@ class Processor
     }
 
     /**
-     * @param array|null $payment ['invoiceId' => PS_INVOICE_ID, 'orderId', 'sum', 'currency', 'paid' => bool, 'canceled' => bool]
+     * @param array|null $payment ['invoiceId' => PS_INVOICE_ID, 'orderId', 'sum', 'currency', 'expected' => PS_STATUS_MESSAGE, 'paid' => bool, 'canceled' => bool]
      * @return array{0: int, 1: string} HTTP status and the action to apply
      */
     public function handle(string $rawBody, string $signatureHeader, int $nowSeconds, ?array $payment): array
@@ -84,8 +84,13 @@ class Processor
 
         $expectedAmount = number_format(round((float) $payment['sum'], 2), 2, '.', '');
         $expectedCurrency = (string) $payment['currency'];
-        // SATS and RUB orders are invoiced in BTC on BTCPay Server; the payment binding above is the check there.
-        if ($this->provider === 'btcpay' && ($invoice['currency'] ?? '') === 'BTC' && $expectedCurrency !== 'BTC') {
+        // Recorded at checkout since 1.2.0, BTC conversion included.
+        if (preg_match('/^expected ([0-9]+(?:\.[0-9]+)?) ([A-Z]{3,4})$/', (string) ($payment['expected'] ?? ''), $recorded)) {
+            $expectedAmount = $recorded[1];
+            $expectedCurrency = $recorded[2];
+        }
+        // Older payments invoiced in BTC (SATS and RUB on BTCPay Server) have no record; the payment binding is the check there.
+        elseif ($this->provider === 'btcpay' && ($invoice['currency'] ?? '') === 'BTC' && $expectedCurrency !== 'BTC') {
             $expectedAmount = (string) ($invoice['amount'] ?? '');
             $expectedCurrency = 'BTC';
         }

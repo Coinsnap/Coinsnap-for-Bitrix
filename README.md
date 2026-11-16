@@ -138,5 +138,7 @@ Read more about the integration configuration on [our Wiki](https://github.com/C
 * Fix: Order totals of 1,000 or more were sent with a thousands separator and invoiced for the wrong amount.
 * Fix: A payment server outage no longer deletes and re-registers the webhook, and a missing stored webhook no longer breaks checkout.
 * Fix: The exchange rate lookup gives up after 3 tries instead of retrying forever.
+* Security: The amount and currency each invoice was created for are recorded on the payment and checked when it settles, including invoices BTCPay Server converted to BTC.
+* Removed: the unused second copy of the Coinsnap library (lib/).
 * Update: added automatic redirect setting.
 * Update: added redirect to custom URL after payment.
