@@ -128,5 +128,15 @@ Read more about the integration configuration on [our Wiki](https://github.com/C
 * Updated Coinsnap PHP library.
 * Update: added payment descriptions.
 * Update: added BTCPay server gateway.
+
+### 1.2.0 :: 2026-11-16
+* Security: Webhooks are verified with the timestamped X-Coinsnap-Signature header (Coinsnap) or BTCPay-Sig (BTCPay Server), with a timing-safe comparison. A missing webhook secret rejects every webhook (before, an empty secret let anyone sign a webhook).
+* Security: The webhook finds the payment by the invoice id stored on it at checkout and marks only that payment paid, through Bitrix's payment API. Before, the payment was picked from an unsigned field in the request and the whole order was marked paid.
+* Security: A payment is marked paid only when the invoice is settled, belongs to that order, and matches the payment's amount and currency. "Processing" never marks it paid, a paid payment is never changed by a later webhook, and an expired invoice no longer cancels a paid order. BTCPay invoices marked settled by hand are not accepted.
+* Security: Payment server error details are no longer shown at checkout, and the checkout templates escape their output.
+* Security: The library no longer sends an Access-Control-Allow-Origin: * header, and API error replies are no longer copied into error messages.
+* Fix: Order totals of 1,000 or more were sent with a thousands separator and invoiced for the wrong amount.
+* Fix: A payment server outage no longer deletes and re-registers the webhook, and a missing stored webhook no longer breaks checkout.
+* Fix: The exchange rate lookup gives up after 3 tries instead of retrying forever.
 * Update: added automatic redirect setting.
 * Update: added redirect to custom URL after payment.

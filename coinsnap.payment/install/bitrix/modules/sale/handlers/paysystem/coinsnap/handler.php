@@ -22,7 +22,7 @@ use Bitrix\Sale\PaySystem\Logger;
 use Coinsnap\Client\Webhook;
 Loc::loadMessages(__FILE__);
 
-if(!defined('COINSNAP_BITRIX_VERSION')){ define( 'COINSNAP_BITRIX_VERSION', '1.1.0' ); }
+if(!defined('COINSNAP_BITRIX_VERSION')){ define( 'COINSNAP_BITRIX_VERSION', '1.2.0' ); }
 if(!defined('COINSNAP_BITRIX_REFERRAL_CODE')){ define( 'COINSNAP_BITRIX_REFERRAL_CODE', 'D84007' ); }
 if(!defined('COINSNAP_CURRENCIES')){ define( 'COINSNAP_CURRENCIES', array("EUR","USD","SATS","BTC","CAD","JPY","GBP","CHF","RUB") ); }
 if(!defined('COINSNAP_SERVER_URL')){ define( 'COINSNAP_SERVER_URL', 'https://app.coinsnap.io' );}
@@ -30,6 +30,9 @@ if(!defined('COINSNAP_API_PATH')){define( 'COINSNAP_API_PATH', '/api/v1/');}
 if(!defined('COINSNAP_SERVER_PATH')){define( 'COINSNAP_SERVER_PATH', 'stores' );}
 
 require_once(__DIR__  . '/library/loader.php');
+require_once(__DIR__ . '/webhook/Signature.php');
+require_once(__DIR__ . '/webhook/InvoiceDecision.php');
+require_once(__DIR__ . '/webhook/Processor.php');
 
 class CoinsnapHandler extends PaySystem\ServiceHandler {
     public const COINSNAP_WEBHOOK_EVENTS = ['New','Expired','Settled','Processing'];
@@ -50,19 +53,19 @@ class CoinsnapHandler extends PaySystem\ServiceHandler {
         
         $paySystemId = $payment->getPaymentSystemId();
         
-        if (! $this->webhookExists($this->getApiUrl($payment), $this->getApiKey($payment), $this->getStoreId($payment), $this->getWebhookSecret($payment))){
-            if (! ($webhook = $this->registerWebhook($this->getApiUrl($payment), $this->getApiKey($payment), $this->getStoreId($payment), $this->getPaymentProvider($payment))) ){
-                $err_msg = Loc::getMessage('SALE_COINSNAP_WEBHOOK_ERROR');
-                $this->setExtraParams([
-                    'message' => $err_msg . ' - '. print_r($webhook,true),  // . '('.$this->getApiUrl($payment).' - '.$this->getApiKey($payment).' - '.$this->getStoreId($payment).')'
-		]);
-                return $this->showTemplate($payment, 'template');
-            }
-	}
-        
-        
+        try {
+            $webhookReady = $this->webhookExists($this->getApiUrl($payment), $this->getApiKey($payment), $this->getStoreId($payment), $this->getWebhookSecret($payment))
+                || $this->registerWebhook($this->getApiUrl($payment), $this->getApiKey($payment), $this->getStoreId($payment), $this->getPaymentProvider($payment));
+        } catch (\Throwable $e) {
+            $webhookReady = false;
+        }
+        if (!$webhookReady) {
+            Logger::addError('Coinsnap: the webhook could not be checked or registered');
+            $this->setExtraParams(['message' => Loc::getMessage('SALE_COINSNAP_WEBHOOK_ERROR')]);
+            return $this->showTemplate($payment, 'template');
+        }
 
-        $amount = number_format($payment->getSum(),2);
+        $amount = number_format((float) $payment->getSum(), 2, '.', '');
         
         $client = new \Coinsnap\Client\Invoice( $this->getApiUrl($payment), $this->getApiKey($payment) );
         $checkInvoice = $client->checkPaymentData((float)$amount,strtoupper($currency_code));
@@ -96,27 +99,33 @@ class CoinsnapHandler extends PaySystem\ServiceHandler {
             }
         
             $camount = ($currency_code === 'BTC')? \Coinsnap\Util\PreciseNumber::parseFloat($amount,8) : \Coinsnap\Util\PreciseNumber::parseFloat($amount,2);
-            $invoice = $client->createInvoice(
-                $this->getStoreId($payment),  
-                $currency_code,
-                $camount,
-                $order_id,
-                $buyerEmail,
-                $buyerName, 
-                $redirectUrl,
-                COINSNAP_BITRIX_REFERRAL_CODE,
-                $metadata,
-                $redirectAutomatically,
-                $walletMessage
-            );
+            try {
+                $invoiceData = $client->createInvoice(
+                    $this->getStoreId($payment),
+                    $currency_code,
+                    $camount,
+                    $order_id,
+                    $buyerEmail,
+                    $buyerName,
+                    $redirectUrl,
+                    COINSNAP_BITRIX_REFERRAL_CODE,
+                    $metadata,
+                    $redirectAutomatically,
+                    $walletMessage
+                )->getData();
+            } catch (\Throwable $e) {
+                Logger::addError(sprintf('Coinsnap: invoice creation failed for order %d (status %d)', (int) $order_id, (int) $e->getCode()));
+                $invoiceData = [];
+            }
 
-            $invoiceURL = $invoice->getData()['checkoutLink'];
-            $invoiceId = $invoice->getData()['id'];
+            $invoiceURL = $invoiceData['checkoutLink'] ?? '';
+            // Stored on the payment: only this invoice can pay it.
+            $invoiceId = $invoiceData['id'] ?? '';
             
             
         
 
-            if (!empty($invoiceURL)){
+            if (!empty($invoiceURL) && !empty($invoiceId)){
                 
                 if(!$propertyCollection->getItemByOrderPropertyCode('INVOICE_URL')){
                 
@@ -165,6 +174,9 @@ class CoinsnapHandler extends PaySystem\ServiceHandler {
             elseif($checkInvoice['error'] === 'amountError'){
                 $err_msg = Loc::getMessage( 'SALE_COINSNAP_INVOICE_DATA_ERROR' ). ' '. $checkInvoice['min_value']. ' '. strtoupper( $currency_code);
             }
+            else {
+                $err_msg = Loc::getMessage('SALE_COINSNAP_API_ERROR');
+            }
                         
             $this->setExtraParams(['message' => $err_msg]);
             return $this->showTemplate($payment, 'template');
@@ -179,160 +191,115 @@ class CoinsnapHandler extends PaySystem\ServiceHandler {
      */
     public static function isMyResponse(Request $request, $paySystemId)
     {
-	$inputStream = file_get_contents('php://input');
-        if ($inputStream){			
-            $data = json_decode($inputStream, true);
-            if ($data !== false && isset($data["invoiceId"])){ return true;}
-        }
-        return false;
+        return \Sale\Handlers\PaySystem\CoinsnapWebhook\Processor::invoiceIdFromBody((string) file_get_contents('php://input')) !== '';
     }
 
     /**
+     * The request names only an invoice; the payment is the one that stored that invoice id at checkout.
      * @param Request $request
      * @return mixed
      */
     public function getPaymentIdFromRequest(Request $request){
-        $inputStream = file_get_contents('php://input');	
-        Logger::addDebugInfo("Coinsnap Webhook Response: " . $inputStream);
-        $data = json_decode($inputStream, true);
-        $orderNumber =  $data['metadata']['orderNumber'];
-        return $orderNumber;
+        $invoiceId = \Sale\Handlers\PaySystem\CoinsnapWebhook\Processor::invoiceIdFromBody((string) file_get_contents('php://input'));
+        if ($invoiceId === '') {
+            return false;
+        }
+        $row = \Bitrix\Sale\Payment::getList([
+            'select' => ['ID'],
+            'filter' => ['=PS_INVOICE_ID' => $invoiceId],
+            'limit' => 1,
+        ])->fetch();
+        return $row ? (int) $row['ID'] : false;
     }
-    
+
     /**
      * @param Payment $payment
      * @param Request $request
      * @return PaySystem\ServiceResult
      */
     public function processRequest(Payment $payment, Request $request){
-	
-        // First check if we have any input
-        $rawPostData = file_get_contents('php://input');
-        
-        if (!$rawPostData) {
-            http_response_code(400);
-            die('No raw post data received');
-        }
-        
-        // Get headers and check for signature
-        $headers = getallheaders();
-        $signature = null;
-        $payloadKey = null;
-        $_provider = ($this->getPaymentProvider($payment) === 'btcpay') ? 'btcpay' : 'coinsnap';
-        
-        foreach ($headers as $key => $value) {
-            if (strtolower($key) === 'x-coinsnap-sig' || strtolower($key) === 'btcpay-sig') {
-                $signature = $value;
-                $payloadKey = strtolower($key);
+        $provider = $this->getPaymentProvider($payment);
+        $stored = json_decode($this->getWebhookSecret($payment), true);
+        $secret = is_array($stored) ? (string) ($stored['secret'] ?? '') : '';
+        $header = ($provider === 'btcpay') ? 'HTTP_BTCPAY_SIG' : 'HTTP_X_COINSNAP_SIGNATURE';
+        $order = $payment->getOrder();
+
+        $processor = new \Sale\Handlers\PaySystem\CoinsnapWebhook\Processor(
+            $provider,
+            $secret,
+            function (string $invoiceId) use ($payment): array {
+                return (new \Coinsnap\Client\Invoice($this->getApiUrl($payment), $this->getApiKey($payment)))->getInvoice($this->getStoreId($payment), $invoiceId)->getData();
+            },
+            static function (string $line): void {
+                Logger::addDebugInfo($line);
             }
+        );
+        [$status, $action] = $processor->handle(
+            (string) file_get_contents('php://input'),
+            (string) ($_SERVER[$header] ?? ''),
+            time(),
+            [
+                'invoiceId' => (string) $payment->getField('PS_INVOICE_ID'),
+                'orderId' => (string) $order->getId(),
+                'sum' => (string) $payment->getSum(),
+                'currency' => (string) $order->getCurrency(),
+                'paid' => $payment->isPaid(),
+                'canceled' => $order->isCanceled(),
+            ]
+        );
+
+        if ($action !== \Sale\Handlers\PaySystem\CoinsnapWebhook\Processor::NONE) {
+            $this->applyWebhookAction($action, $payment, $order);
         }
-        
-        // Handle missing or invalid signature
-        if (!isset($signature)) {
-            http_response_code(401);
-            die('Authentication required');
-        }
-
-        // Validate the signature
-        $webhook = json_decode($this->getWebhookSecret($payment),true);
-        if (!Webhook::isIncomingWebhookRequestValid($rawPostData, $signature, $webhook['secret'])) {
-            http_response_code(401);
-            die('Invalid authentication signature for '.$payloadKey);
-        }
-        
-        try {
-
-            // Parse the JSON payload
-            $postData = json_decode($rawPostData, false, 512, JSON_THROW_ON_ERROR);
-            
-            if (!isset($postData->invoiceId)) {
-                http_response_code(400);
-                die('No Coinsnap invoiceId provided');
-            }
-
-            if (strpos($postData->invoiceId, 'test_') !== false) {
-                http_response_code(200);
-                die('Successful webhook test');
-            }
-
-            $invoice_id = $postData->invoiceId;
-            
-            try {
-                
-                $client = new \Coinsnap\Client\Invoice($this->getApiUrl($payment), $this->getApiKey($payment));
-                $csinvoice = $client->getInvoice($this->getStoreId($payment), $invoice_id);
-                $status = $csinvoice->getData()['status'];
-                $order_id = ($_provider === 'btcpay') ? $csinvoice->getData()['metadata']['orderId'] : $csinvoice->getData()['orderId'];
-                
-                $order = $payment->getOrder();        
-                $currency_code = $order->getCurrency();
-                
-                switch($status){
-                    case 'New':
-                        $status_id = $this->getBusinessValue($payment, 'COINSNAP_STATUS_NEW');
-                        $description = Loc::getMessage("SALE_COINSNAP_STATUS_NEW");
-                        break;
-                    case 'InvoiceExpired':
-                    case 'Expired':
-                        $status_id = $this->getBusinessValue($payment, 'COINSNAP_STATUS_EXP');
-                        $description = Loc::getMessage("SALE_COINSNAP_STATUS_EXP");
-                        break;
-                    case 'InvoiceProcessing':
-                    case 'Processing': 
-                        $status_id = $this->getBusinessValue($payment, 'COINSNAP_STATUS_PRO');
-                        $description = Loc::getMessage("SALE_COINSNAP_STATUS_PRO");
-                        break;
-                    case 'InvoiceSettled':
-                    case 'Settled':
-                        $status_id = $this->getBusinessValue($payment, 'COINSNAP_STATUS_SET');
-                        $description = Loc::getMessage("SALE_COINSNAP_STATUS_SET");
-                        break;
-                    default: break;
-                }
-                
-                $arFields = array(
-                    'STATUS_ID' =>$status_id,
-                    'PS_STATUS_DESCRIPTION' => $description,
-                    'PS_STATUS_MESSAGE' => $status,			
-                );
-
-                //  If payment is received
-                if ($status_id === 'P') {
-                    $arFields = array(
-                        'STATUS_ID' => $status_id,
-                        'PAYED' =>  'Y',
-                        'PS_STATUS' => 'Y',
-                        'PS_STATUS_CODE' => $status_id,
-                        'PS_STATUS_DESCRIPTION' => $description,
-                        'PS_STATUS_MESSAGE' => $status,
-                        'PS_SUM' => $payment->getSum(),
-                        'PS_CURRENCY' => $currency_code,
-                        'PS_RESPONSE_DATE' => new Main\Type\DateTime(),
-                    );
-                }
-
-                if ($status === 'Expired') {     
-                    $arFields['PAYED'] =  'N';
-                    $arFields['PS_STATUS'] = 'N';
-                    $arFields['CANCELED'] = 'Y';
-                    $arFields['DATE_CANCELED'] = new Main\Type\DateTime();
-                    $arFields['REASON_CANCELED'] = $status;	        
-                }
-                
-                \CSaleOrder::Update($order_id, $arFields);
-                echo "OK";
-                exit;
-                
-            } catch (JsonException $e) {
-                http_response_code(400);
-                die('Invalid JSON payload');
-            }
-            
-        } catch (\Throwable $e) {
-            http_response_code(500);
-            die('Internal server error');
-        }
+        http_response_code($status);
+        echo $status === 200 ? 'OK' : ($status === 401 ? 'Unauthorized' : 'Retry');
         exit;
+    }
+
+    private function applyWebhookAction(string $action, Payment $payment, $order): void
+    {
+        $now = new Main\Type\DateTime();
+        if ($action === \Sale\Handlers\PaySystem\CoinsnapWebhook\Processor::PAY) {
+            if ($order->isCanceled()) {
+                $order->setField('CANCELED', 'N');
+            }
+            $payment->setPaid('Y');
+            $payment->setFields([
+                'PS_STATUS' => 'Y',
+                'PS_STATUS_CODE' => 'Settled',
+                'PS_STATUS_DESCRIPTION' => Loc::getMessage('SALE_COINSNAP_STATUS_SET'),
+                'PS_STATUS_MESSAGE' => 'Settled',
+                'PS_SUM' => $payment->getSum(),
+                'PS_CURRENCY' => $order->getCurrency(),
+                'PS_RESPONSE_DATE' => $now,
+            ]);
+            $this->setOrderStatus($order, (string) $this->getBusinessValue($payment, 'COINSNAP_STATUS_SET'));
+        }
+        elseif ($action === \Sale\Handlers\PaySystem\CoinsnapWebhook\Processor::PROCESSING) {
+            $payment->setField('PS_STATUS_DESCRIPTION', Loc::getMessage('SALE_COINSNAP_STATUS_PRO'));
+            $statusId = (string) $this->getBusinessValue($payment, 'COINSNAP_STATUS_PRO');
+            // "P" is Bitrix's paid status; a payment that isn't confirmed yet must not show as paid.
+            if ($statusId !== 'P') {
+                $this->setOrderStatus($order, $statusId);
+            }
+        }
+        else {
+            $payment->setField('PS_STATUS_DESCRIPTION', Loc::getMessage('SALE_COINSNAP_STATUS_EXP'));
+            $this->setOrderStatus($order, (string) $this->getBusinessValue($payment, 'COINSNAP_STATUS_EXP'));
+            $order->setField('CANCELED', 'Y');
+            $order->setField('REASON_CANCELED', 'Coinsnap invoice expired');
+        }
+        $result = $order->save();
+        if (!$result->isSuccess()) {
+            Logger::addError('Coinsnap: the order could not be saved after a webhook: ' . implode('; ', $result->getErrorMessages()));
+        }
+    }
+
+    private function setOrderStatus($order, string $statusId): void
+    {
+        if ($statusId !== '' && $statusId !== (string) $order->getField('STATUS_ID')) {
+            $order->setField('STATUS_ID', $statusId);
+        }
     }
     
     public function getPaymentProvider($payment){
@@ -370,83 +337,63 @@ class CoinsnapHandler extends PaySystem\ServiceHandler {
         return $this->getBusinessValue($payment, 'COINSNAP_RETURNURL') ? : $this->service->getContext()->getUrl();
     }
 
+    // Throws when the API can't be asked; the caller must not treat that as "no webhook".
     public function webhookExists(string $apiUrl, string $apiKey, string $storeId, string $webhook): bool {
-	
         $whClient = new \Coinsnap\Client\Webhook($apiUrl, $apiKey);
-        $storedWebhook = json_decode($webhook,true,512,JSON_THROW_ON_ERROR);
-        
-	if (is_array($storedWebhook)) {
-            
+        $stored = json_decode($webhook, true);
+
+        if (is_array($stored) && !empty($stored['id']) && !empty($stored['secret'])) {
             try {
-		$existingWebhook = $whClient->getWebhook( $storeId, $storedWebhook['id'] );
-                
-                if($existingWebhook->getData()['secret'] === $storedWebhook['secret'] && strpos( $existingWebhook->getData()['url'], $this->getWebhookUrl() ) !== false){
+                $existing = $whClient->getWebhook($storeId, (string) $stored['id']);
+                if (strpos((string) ($existing->getData()['url'] ?? ''), $this->getWebhookUrl()) !== false) {
                     return true;
-		}
-            }
-            catch (\Throwable $e) {
-		$errorMessage = Loc::getMessage('SALE_COINSNAP_WEBHOOK_FETCHING_ERROR');
-                $this->setExtraParams([
-                    'message' => $errorMessage . $e->getMessage(),
-		]);
-            }
-	}
-        try {
-            $storeWebhooks = $whClient->getWebhooks( $storeId );
-            foreach($storeWebhooks as $webhook){
-                if(strpos( $webhook->getData()['url'], $this->getWebhookUrl() ) !== false){
-                    $whClient->deleteWebhook( $storeId, $webhook->getData()['id'] );
+                }
+            } catch (\Coinsnap\Exception\RequestException $e) {
+                if (!in_array($e->getCode(), [400, 404], true)) {
+                    throw $e;
                 }
             }
         }
-        catch (\Throwable $e) {
-            $errorMessage = Loc::getMessage('SALE_COINSNAP_WEBHOOKS_LIST_FETCHING_ERROR');
-                $this->setExtraParams([
-                    'message' => $errorMessage . $e->getMessage(),
-		]);
+        // Remove webhooks of ours whose secret this shop does not hold.
+        foreach ($whClient->getWebhooks($storeId) as $existingWebhook) {
+            if (strpos((string) $existingWebhook->getData()['url'], $this->getWebhookUrl()) !== false) {
+                try {
+                    $whClient->deleteWebhook($storeId, $existingWebhook->getData()['id']);
+                } catch (\Throwable $e) {
+                    Logger::addError('Coinsnap: a stale webhook could not be deleted');
+                }
+            }
         }
-        
-	return false;
-    }
-    
-    public function registerWebhook(string $apiUrl, $apiKey, $storeId, $provider){
-        
-        try {
-            $whClient = new Webhook( $apiUrl, $apiKey );
-            $webhook_events = ($provider === 'btcpay')? self::BTCPAY_WEBHOOK_EVENTS : self::COINSNAP_WEBHOOK_EVENTS;
-            $webhook = $whClient->createWebhook(
-                $storeId,   //$storeId
-		$this->getWebhookUrl(), //$url
-		$webhook_events,   //$specificEvents
-		null    //$secret
-            );
-            
-            $webhook_data = [
-                    'id' => $webhook->getData()['id'],
-                    'secret' => $webhook->getData()['secret'],
-                    'url' => $webhook->getData()['url']
-            ];
-            
-            $db = \Bitrix\Main\Application::getConnection();
-            if($isWebhook = $db->query("SELECT `CODE_KEY` FROM b_sale_bizval WHERE CODE_KEY = 'COINSNAP_WEBHOOK_SECRET'")){
-                $db->queryExecute("UPDATE b_sale_bizval SET PROVIDER_VALUE = '".json_encode($webhook_data)."' WHERE CODE_KEY = 'COINSNAP_WEBHOOK_SECRET'");
-            }
-            else {
-                $db->add('b_sale_bizval', [
-                    'PROVIDER_VALUE' => json_encode($webhook_data),
-                    'CODE_KEY' => 'COINSNAP_WEBHOOK_SECRET'
-                ]);
-            }
-            return $webhook;
-	}
-        catch (\Throwable $e) {
-            
-            $errorMessage = Loc::getMessage('SALE_COINSNAP_WEBHOOK_CREATING_ERROR');
-            $this->setExtraParams([
-                'message' => $errorMessage . $e->getMessage(),
-            ]);
-	}
-        
         return false;
+    }
+
+    public function registerWebhook(string $apiUrl, $apiKey, $storeId, $provider){
+        try {
+            $whClient = new Webhook($apiUrl, $apiKey);
+            $webhook_events = ($provider === 'btcpay')? self::BTCPAY_WEBHOOK_EVENTS : self::COINSNAP_WEBHOOK_EVENTS;
+            $webhook = $whClient->createWebhook($storeId, $this->getWebhookUrl(), $webhook_events, null)->getData();
+        }
+        catch (\Throwable $e) {
+            Logger::addError(sprintf('Coinsnap: the webhook could not be registered (status %d)', (int) $e->getCode()));
+            return false;
+        }
+        if (empty($webhook['id']) || empty($webhook['secret'])) {
+            return false;
+        }
+
+        $value = json_encode(['id' => $webhook['id'], 'secret' => $webhook['secret'], 'url' => $webhook['url'] ?? $this->getWebhookUrl()]);
+        $db = \Bitrix\Main\Application::getConnection();
+        $helper = $db->getSqlHelper();
+        $exists = $db->query("SELECT `CODE_KEY` FROM b_sale_bizval WHERE CODE_KEY = 'COINSNAP_WEBHOOK_SECRET'")->fetch();
+        if ($exists) {
+            $db->queryExecute("UPDATE b_sale_bizval SET PROVIDER_VALUE = '" . $helper->forSql($value) . "' WHERE CODE_KEY = 'COINSNAP_WEBHOOK_SECRET'");
+        }
+        else {
+            $db->add('b_sale_bizval', [
+                'PROVIDER_VALUE' => $value,
+                'CODE_KEY' => 'COINSNAP_WEBHOOK_SECRET'
+            ]);
+        }
+        return true;
     }
 }
