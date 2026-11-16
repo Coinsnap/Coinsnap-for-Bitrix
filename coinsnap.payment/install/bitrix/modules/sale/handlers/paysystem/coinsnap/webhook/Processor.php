@@ -84,8 +84,12 @@ class Processor
 
         $expectedAmount = number_format(round((float) $payment['sum'], 2), 2, '.', '');
         $expectedCurrency = (string) $payment['currency'];
-        // Recorded at checkout since 1.2.0, BTC conversion included.
-        if (preg_match('/^expected ([0-9]+(?:\.[0-9]+)?) ([A-Z]{3,4})$/', (string) ($payment['expected'] ?? ''), $recorded)) {
+        // Recorded at checkout since 1.2.0, BTC conversion included, with the payment sum it was made for.
+        if (preg_match('/^expected ([0-9]+(?:\.[0-9]+)?) ([A-Z]{3,4}) for ([0-9]+(?:\.[0-9]+)?) ([A-Z]{3,4})$/', (string) ($payment['expected'] ?? ''), $recorded)) {
+            if (InvoiceDecision::toMinorUnits($recorded[3]) !== InvoiceDecision::toMinorUnits($expectedAmount) || $recorded[4] !== $expectedCurrency) {
+                $this->security('payment sum changed', $invoiceId);
+                return [200, self::NONE];
+            }
             $expectedAmount = $recorded[1];
             $expectedCurrency = $recorded[2];
         }

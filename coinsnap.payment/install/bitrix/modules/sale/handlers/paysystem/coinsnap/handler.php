@@ -148,7 +148,7 @@ class CoinsnapHandler extends PaySystem\ServiceHandler {
                         'PS_STATUS_CODE' => $status_id,
                         'PS_INVOICE_ID' => $invoiceId,
                         // What the invoice was created for (BTCPay may have converted it to BTC); the webhook checks it.
-                        'PS_STATUS_MESSAGE' => 'expected ' . (string) $camount . ' ' . $currency_code,
+                        'PS_STATUS_MESSAGE' => 'expected ' . (string) $camount . ' ' . $currency_code . ' for ' . number_format((float) $payment->getSum(), 2, '.', '') . ' ' . $order->getCurrency(),
                         'PS_STATUS_DESCRIPTION' => Loc::getMessage("SALE_COINSNAP_STATUS_WAITING")
                     ]
                 );
