@@ -34,15 +34,36 @@ class Processor
         return preg_match('/^[A-Za-z0-9_-]{1,64}$/', $id) ? $id : '';
     }
 
+    // The signature check alone, logged like in handle(). The handler calls it before taking any lock.
+    public function verify(string $rawBody, string $signatureHeader, int $nowSeconds): bool
+    {
+        $problem = $this->signatureProblem($rawBody, $signatureHeader, $nowSeconds);
+        if ($problem !== null) {
+            $this->security($problem);
+            return false;
+        }
+        return true;
+    }
+
+    private function signatureProblem(string $rawBody, string $signatureHeader, int $nowSeconds): ?string
+    {
+        return ($this->provider === 'btcpay')
+            ? Signature::btcpayProblem($signatureHeader, $rawBody, $this->secret)
+            : Signature::coinsnapProblem($signatureHeader, $rawBody, $this->secret, $nowSeconds);
+    }
+
     /**
-     * @param array|null $payment ['invoiceId' => PS_INVOICE_ID, 'orderId', 'sum', 'currency', 'expected' => PS_STATUS_MESSAGE, 'paid' => bool, 'canceled' => bool]
+     * @param array|null $payment [
+     *   'paymentId', 'invoiceId' => PS_INVOICE_ID (the newest invoice), 'orderId', 'sum', 'currency',
+     *   'expected' => PS_STATUS_MESSAGE, 'paid' => bool, 'canceled' => bool,
+     *   'record' => InvoiceRecords::find() of this invoice or null, 'legacyAllowed' => bool,
+     *   'statusIsOurs' => bool (the order status is one this plugin sets), 'otherPaid' => bool (another payment of the order is paid)
+     * ]
      * @return array{0: int, 1: string} HTTP status and the action to apply
      */
     public function handle(string $rawBody, string $signatureHeader, int $nowSeconds, ?array $payment): array
     {
-        $problem = ($this->provider === 'btcpay')
-            ? Signature::btcpayProblem($signatureHeader, $rawBody, $this->secret)
-            : Signature::coinsnapProblem($signatureHeader, $rawBody, $this->secret, $nowSeconds);
+        $problem = $this->signatureProblem($rawBody, $signatureHeader, $nowSeconds);
         if ($problem !== null) {
             $this->security($problem);
             return [401, self::NONE];
@@ -53,9 +74,21 @@ class Processor
             $this->info('not ours', $invoiceId);
             return [200, self::NONE];
         }
-        // The plugin stores the invoice id on the payment when it creates the invoice.
-        if ((string) $payment['invoiceId'] !== $invoiceId) {
+        $record = is_array($payment['record'] ?? null) ? $payment['record'] : null;
+        // Every invoice the plugin creates gets a record naming its payment (since 1.2.0).
+        if ($record !== null) {
+            if ((string) $record['paymentId'] !== (string) ($payment['paymentId'] ?? '')) {
+                $this->security('invoice not created for this payment', $invoiceId);
+                return [200, self::NONE];
+            }
+        }
+        // Older payments only stored their newest invoice id on the payment; accepted for a short time after the upgrade.
+        elseif ((string) $payment['invoiceId'] !== $invoiceId) {
             $this->security('invoice not created for this payment', $invoiceId);
+            return [200, self::NONE];
+        }
+        elseif (empty($payment['legacyAllowed'])) {
+            $this->info('no invoice record', $invoiceId);
             return [200, self::NONE];
         }
         $body = json_decode($rawBody, true);
@@ -84,8 +117,17 @@ class Processor
 
         $expectedAmount = number_format(round((float) $payment['sum'], 2), 2, '.', '');
         $expectedCurrency = (string) $payment['currency'];
-        // Recorded at checkout since 1.2.0, BTC conversion included, with the payment sum it was made for.
-        if (preg_match('/^expected ([0-9]+(?:\.[0-9]+)?) ([A-Z]{3,4}) for ([0-9]+(?:\.[0-9]+)?) ([A-Z]{3,4})$/', (string) ($payment['expected'] ?? ''), $recorded)) {
+        if ($record !== null && $record['amount'] !== '') {
+            // The invoice pays the payment only while its sum is the one the invoice was created for.
+            if (InvoiceDecision::toMinorUnits($record['paymentSum']) !== InvoiceDecision::toMinorUnits($expectedAmount) || $record['paymentCurrency'] !== $expectedCurrency) {
+                $this->security('payment sum changed', $invoiceId);
+                return [200, self::NONE];
+            }
+            $expectedAmount = $record['amount'];
+            $expectedCurrency = $record['currency'];
+        }
+        // Recorded on the payment by the first 1.2.0 builds, BTC conversion included, with the payment sum it was made for.
+        elseif (preg_match('/^expected ([0-9]+(?:\.[0-9]+)?) ([A-Z]{3,4}) for ([0-9]+(?:\.[0-9]+)?) ([A-Z]{3,4})$/', (string) ($payment['expected'] ?? ''), $recorded)) {
             if (InvoiceDecision::toMinorUnits($recorded[3]) !== InvoiceDecision::toMinorUnits($expectedAmount) || $recorded[4] !== $expectedCurrency) {
                 $this->security('payment sum changed', $invoiceId);
                 return [200, self::NONE];
@@ -105,27 +147,51 @@ class Processor
             return [200, self::NONE];
         }
 
-        $action = self::action($decision, (bool) $payment['paid'], (bool) $payment['canceled']);
-        $this->info($action === self::NONE ? 'no change' : 'status ' . $decision, $invoiceId);
+        $state = [
+            'paid' => !empty($payment['paid']) || !empty($record['paid']),
+            'canceled' => !empty($payment['canceled']),
+            'latest' => (string) $payment['invoiceId'] === $invoiceId,
+            'statusIsOurs' => !empty($payment['statusIsOurs']),
+            'otherPaid' => !empty($payment['otherPaid']),
+        ];
+        [$action, $reason] = self::action($decision, $state);
+        $this->info($reason, $invoiceId);
         return [200, $action];
     }
 
-    // A paid payment is never changed; a late payment may still settle a cancelled order.
-    public static function action(string $decision, bool $paid, bool $canceled): string
+    /**
+     * Forward only. A paid payment never changes; only a real payment changes an order whose status
+     * the merchant set by hand; an older invoice expiring never cancels the order.
+     * @param array{paid: bool, canceled: bool, latest: bool, statusIsOurs: bool, otherPaid: bool} $state
+     * @return array{0: string, 1: string} action and the reason for the log
+     */
+    public static function action(string $decision, array $state): array
     {
-        if ($paid) {
-            return self::NONE;
+        if ($decision === InvoiceDecision::NONE) {
+            return [self::NONE, 'status ignored'];
+        }
+        if ($state['paid']) {
+            return [self::NONE, 'already processed'];
         }
         if ($decision === InvoiceDecision::PAID) {
-            return self::PAY;
+            return [self::PAY, 'status paid'];
         }
-        if ($canceled) {
-            return self::NONE;
+        if ($state['canceled']) {
+            return [self::NONE, 'order cancelled'];
+        }
+        if (!$state['statusIsOurs']) {
+            return [self::NONE, 'manual status kept'];
         }
         if ($decision === InvoiceDecision::PROCESSING) {
-            return self::PROCESSING;
+            return [self::PROCESSING, 'status processing'];
         }
-        return $decision === InvoiceDecision::EXPIRED ? self::EXPIRE : self::NONE;
+        if (!$state['latest']) {
+            return [self::NONE, 'older invoice expired'];
+        }
+        if ($state['otherPaid']) {
+            return [self::NONE, 'order partly paid'];
+        }
+        return [self::EXPIRE, 'status expired'];
     }
 
     private function info(string $reason, string $invoiceId = ''): void

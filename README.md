@@ -140,5 +140,11 @@ Read more about the integration configuration on [our Wiki](https://github.com/C
 * Fix: The exchange rate lookup gives up after 3 tries instead of retrying forever.
 * Security: The amount and currency each invoice was created for are recorded on the payment and checked when it settles, including invoices BTCPay Server converted to BTC.
 * Removed: the unused second copy of the Coinsnap library (lib/).
+* Security: Every invoice created for a payment is kept in its own table (b_coinsnap_payment_invoice) with the amount and currency it asked for, so paying an older invoice of the same payment still counts. Payments from before this table are accepted for 24 hours after the upgrade.
+* Security: A webhook is routed to the payment system that created the invoice, so two Coinsnap/BTCPay payment systems with different stores each check webhooks with their own secret.
+* Security: A webhook acts once per invoice, from the plugin's own record: a payment the merchant set back to unpaid stays unpaid. If the order can't be saved, the webhook replies 503 and the retry settles it.
+* Security: An order status set by hand is kept by Processing and Expired webhooks; an older invoice expiring, or an order with another paid payment, no longer cancels the order. The signature is checked before the payment lock is taken.
+* Security: A BTCPay API key is used only if BTCPay (GET /api/v1/api-keys/current) reports it limited to the configured store with the permissions the module needs. The BTCPay URL must be http(s).
+* Removed: unused library classes that called WordPress functions or trusted posted BTCPay permissions (APIWebhook, BTCPayApiAuthorization).
 * Update: added automatic redirect setting.
 * Update: added redirect to custom URL after payment.
