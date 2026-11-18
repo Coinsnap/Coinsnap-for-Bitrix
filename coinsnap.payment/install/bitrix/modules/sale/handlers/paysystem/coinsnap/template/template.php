@@ -14,5 +14,5 @@ if (isset($payment) && $payment->isPaid()) {
 //  If message is sent
 elseif(isset($params['message'])) {
     echo '<h3>'.Loc::getMessage('COINSNAP_ERROR').'</h3>';
-    echo '<p>'.$params['message'].'</p>';
+    echo '<p>'.htmlspecialchars((string) $params['message'], ENT_QUOTES).'</p>';
 }

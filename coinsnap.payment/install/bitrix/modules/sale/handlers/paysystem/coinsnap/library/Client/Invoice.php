@@ -1,7 +1,6 @@
 <?php
 declare(strict_types=1);
 namespace Coinsnap\Client;
-header('Access-Control-Allow-Origin: *');
 
 use Coinsnap\Result\InvoicePaymentMethod;
 use Coinsnap\Http\CurlClient;
@@ -34,17 +33,21 @@ class Invoice extends AbstractClient{
             'Priority' => 'u=0, i',
         ];
         $method = 'GET';
-        $code = 1000;
-        
-        while($code > 399){
-            if($code !== 1000){ sleep(2); }
+        // At most 3 tries, so a rate-limited or failing rates API can't hang checkout.
+        for ($attempt = 1; $attempt <= 3; $attempt++) {
             $response = $this->getHttpClient()->request($method, $url, $headers);
-            $code = (int)$response->getStatus();
+            if ((int) $response->getStatus() < 400) {
+                break;
+            }
+            if ($attempt === 3) {
+                return array('result' => false, 'error' => 'ratesListError');
+            }
+            sleep(1);
         }
         
         $body = json_decode($response->getBody(), true, 512, JSON_INVALID_UTF8_IGNORE);
         
-        if (count($body)<1 || !isset($body['rates'])){
+        if (!is_array($body) || !isset($body['rates'])){
             return array('result' => false, 'error' => 'ratesListError');
         }
     
