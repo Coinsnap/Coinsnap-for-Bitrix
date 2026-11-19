@@ -35,6 +35,7 @@ require_once(__DIR__ . '/webhook/InvoiceDecision.php');
 require_once(__DIR__ . '/webhook/Processor.php');
 require_once(__DIR__ . '/webhook/InvoiceRecords.php');
 require_once(__DIR__ . '/webhook/BtcpayKey.php');
+require_once(__DIR__ . '/webhook/InvoiceMetadata.php');
 
 class CoinsnapHandler extends PaySystem\ServiceHandler {
     public const COINSNAP_WEBHOOK_EVENTS = ['New','Expired','Settled','Processing'];
@@ -86,12 +87,11 @@ class CoinsnapHandler extends PaySystem\ServiceHandler {
 
             $redirectUrl = (!empty($this->getBusinessValue($payment, 'COINSNAP_RETURNURL')))? $this->getBusinessValue($payment, 'COINSNAP_RETURNURL') : $this->getReturnUrl($payment);
 		
-            $metadata = [];
-            $metadata['orderNumber'] = $order_id;
-            $metadata['customerName'] = $buyerName;
-            
-            if($this->getPaymentProvider($payment) === 'btcpay'){
-                $metadata['orderId'] = $order_id;
+            // metadata.orderId (BTCPay) and the top-level orderId (Coinsnap) stay the order ID: the webhook matches on them.
+            $metadata = $this->invoiceMetadata($order);
+            $metadata['orderId'] = (string) $order_id;
+            if ($buyerName !== '') {
+                $metadata['customerName'] = $buyerName;
             }
 
             $redirectAutomatically = ($this->getBusinessValue($payment, 'COINSNAP_AUTOREDIRECT') === 'N')? false : true;
@@ -523,6 +523,21 @@ class CoinsnapHandler extends PaySystem\ServiceHandler {
 
     private static function webhookOptionName(string $provider, string $storeId): string {
         return 'webhook_' . md5($provider . '|' . $storeId);
+    }
+
+    // Order, customer and line-item data for the invoice; never stops the checkout.
+    private function invoiceMetadata($order): array {
+        try {
+            $serverName = trim((string) Main\Config\Option::get('main', 'server_name', ''));
+            if ($serverName === '' && defined('SITE_SERVER_NAME')) {
+                $serverName = trim((string) SITE_SERVER_NAME);
+            }
+            $orderUrl = $serverName === '' ? '' : 'https://' . preg_replace('#^https?://#i', '', rtrim($serverName, '/'))
+                . '/bitrix/admin/sale_order_view.php?ID=' . (int) $order->getId() . '&lang=' . (defined('LANGUAGE_ID') ? LANGUAGE_ID : 'en');
+            return \Sale\Handlers\PaySystem\CoinsnapWebhook\InvoiceMetadata::fromOrder($order, $orderUrl, COINSNAP_BITRIX_VERSION);
+        } catch (\Throwable $e) {
+            return ['orderNumber' => (string) $order->getId()];
+        }
     }
 
     // From the configured server name, never the request's Host header.
